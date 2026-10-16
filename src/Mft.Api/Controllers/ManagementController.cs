@@ -4,9 +4,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Mft.Domain;
 using Mft.Infrastructure.Persistence;
+using System.Security.Cryptography;
 namespace Mft.Api.Controllers;
 [ApiController][Route("api/manage")][Authorize]
-public sealed class ManagementController(AppDbContext db,ICurrentUser current):ControllerBase {
+public sealed class ManagementController(AppDbContext db,ICurrentUser current,ISmsSender sms):ControllerBase {
  public sealed record UpdateStudentRequest(string FullName,string Email,string Mobile,string StudentNumber,string EntryYear,decimal? GPA,string Status);
  public sealed record UpdateTeacherRequest(string FullName,string Email,string Mobile,string Specialty,string Status);
  public sealed record UpdateQuestionRequest(string Text,QuestionType Type,decimal Points,bool IsActive);
@@ -17,6 +18,32 @@ public sealed class ManagementController(AppDbContext db,ICurrentUser current):C
  [Authorize(Roles="SuperAdmin,Department,Teacher")][HttpPut("students/{id:guid}")] public async Task<IActionResult> UpdateStudent(Guid id,UpdateStudentRequest r,CancellationToken ct){var s=await db.Students.Include(x=>x.User).SingleOrDefaultAsync(x=>x.Id==id,ct);if(s is null)return NotFound();if(!await InScope(s.DepartmentId,ct))return Forbid();s.User.FullName=r.FullName;s.User.Email=r.Email;s.User.Mobile=r.Mobile;s.StudentNumber=r.StudentNumber;s.EntryYear=r.EntryYear;s.GPA=r.GPA;s.Status=r.Status;await db.SaveChangesAsync(ct);return NoContent();}
  [Authorize(Roles="SuperAdmin,Department")][HttpPut("teachers/{id:guid}")] public async Task<IActionResult> UpdateTeacher(Guid id,UpdateTeacherRequest r,CancellationToken ct){var t=await db.Teachers.Include(x=>x.User).SingleOrDefaultAsync(x=>x.Id==id,ct);if(t is null)return NotFound();if(!await InScope(t.DepartmentId,ct))return Forbid();t.User.FullName=r.FullName;t.User.Email=r.Email;t.User.Mobile=r.Mobile;t.Specialty=r.Specialty;t.Status=r.Status;await db.SaveChangesAsync(ct);return NoContent();}
  [Authorize(Roles="SuperAdmin")][HttpPatch("users/{id:guid}/active")] public async Task<IActionResult> SetUserActive(Guid id,[FromQuery]bool active,CancellationToken ct){var u=await db.Users.SingleOrDefaultAsync(x=>x.Id==id,ct);if(u is null)return NotFound();if(u.Role==UserRole.SuperAdmin&& !active && await db.Users.CountAsync(x=>x.Role==UserRole.SuperAdmin&&x.IsActive,ct)<=1)return BadRequest(new{message="حداقل یک مدیر سیستم فعال باید باقی بماند."});u.IsActive=active;await db.SaveChangesAsync(ct);return NoContent();}
+ [Authorize(Roles="SuperAdmin,Department,Teacher")][HttpPost("users/{id:guid}/reset-password")]
+ public async Task<IActionResult> ResetPassword(Guid id, CancellationToken ct)
+ {
+  var target = await db.Users.SingleOrDefaultAsync(u => u.Id == id, ct);
+  if (target is null) return NotFound();
+  if (current.Role != UserRole.SuperAdmin)
+  {
+   var scope = await Scope(ct);
+   if (!scope.HasValue || target.DepartmentId != scope.Value) return Forbid();
+   if (target.Role == UserRole.SuperAdmin || target.Role == UserRole.Department) return Forbid();
+   if (current.Role == UserRole.Teacher)
+   {
+    var isStudentInScope = target.Role == UserRole.Student &&
+      await db.Students.AnyAsync(s => s.UserId == target.Id && s.DepartmentId == scope.Value, ct);
+    if (!isStudentInScope) return Forbid();
+   }
+  }
+  const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@$";
+  var password = new string(Enumerable.Range(0, 14).Select(_ => chars[RandomNumberGenerator.GetInt32(chars.Length)]).ToArray());
+  target.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
+  target.MustChangePassword = true;
+  await db.SaveChangesAsync(ct);
+  if (!string.IsNullOrWhiteSpace(target.Mobile))
+   await sms.SendAsync(target.Mobile, $"رمز موقت جدید حساب شما: {password} | در اولین ورود آن را تغییر دهید.", ct);
+  return Ok(new { message = "رمز موقت بازنشانی شد؛ تغییر آن در ورود بعدی الزامی است.", temporaryPassword = password });
+ }
  [Authorize(Roles="SuperAdmin,Teacher")][HttpPut("questions/{id:guid}")] public async Task<IActionResult> UpdateQuestion(Guid id,UpdateQuestionRequest r,CancellationToken ct){var q=await db.Questions.Include(x=>x.CreatedByTeacher).SingleOrDefaultAsync(x=>x.Id==id,ct);if(q is null)return NotFound();if(current.Role==UserRole.Teacher&&q.CreatedByTeacher.UserId!=current.UserId)return Forbid();q.Text=r.Text;q.Type=r.Type;q.Points=r.Points;q.IsActive=r.IsActive;await db.SaveChangesAsync(ct);return NoContent();}
  [Authorize(Roles="SuperAdmin,Teacher")][HttpDelete("questions/{id:guid}")] public async Task<IActionResult> DeleteQuestion(Guid id,CancellationToken ct){var q=await db.Questions.Include(x=>x.Options).Include(x=>x.ExamQuestions).Include(x=>x.CreatedByTeacher).SingleOrDefaultAsync(x=>x.Id==id,ct);if(q is null)return NotFound();if(current.Role==UserRole.Teacher&&q.CreatedByTeacher.UserId!=current.UserId)return Forbid();if(q.ExamQuestions.Count>0)return Conflict(new{message="سؤال متصل به آزمون است؛ ابتدا ارتباط آزمون را حذف کنید."});db.Questions.Remove(q);await db.SaveChangesAsync(ct);return NoContent();}
  [Authorize(Roles="SuperAdmin,Department,Teacher")][HttpPut("exams/{id:guid}")] public async Task<IActionResult> UpdateExam(Guid id,UpdateExamRequest r,CancellationToken ct){var e=await db.Exams.Include(x=>x.Teacher).SingleOrDefaultAsync(x=>x.Id==id,ct);if(e is null)return NotFound();if(!await InScope(e.DepartmentId,ct))return Forbid();if(current.Role==UserRole.Teacher&&e.Teacher.UserId!=current.UserId)return Forbid();if(r.DurationMinutes<1)return BadRequest(new{message="مدت آزمون باید بیشتر از صفر باشد."});e.Title=r.Title;e.DurationMinutes=r.DurationMinutes;e.PassingScore=r.PassingScore;e.ScheduledAt=r.ScheduledAt;e.AllowNavigation=r.AllowNavigation;e.Status=r.Status;await db.SaveChangesAsync(ct);return NoContent();}

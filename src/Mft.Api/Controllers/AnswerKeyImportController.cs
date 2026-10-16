@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Xml;
 using System.Xml.Linq;
 using ClosedXML.Excel;
 using Microsoft.AspNetCore.Authorization;
@@ -174,7 +175,7 @@ public sealed class AnswerKeyImportController(AppDbContext db, ICurrentUser curr
 
     private static async Task<List<ImportedQuestion>> ParseXmlAsync(Stream stream, CancellationToken ct)
     {
-        var doc = await XDocument.LoadAsync(stream, LoadOptions.None, ct);
+        var doc = await XDocument.LoadAsync(stream, System.Xml.Linq.LoadOptions.None, ct);
         return doc.Descendants().Where(x => x.Name.LocalName.Equals("Question", StringComparison.OrdinalIgnoreCase)).Select(q =>
         {
             var text = q.Elements().FirstOrDefault(x => x.Name.LocalName.Equals("Text", StringComparison.OrdinalIgnoreCase))?.Value ?? "";

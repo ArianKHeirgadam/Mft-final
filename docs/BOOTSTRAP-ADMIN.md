@@ -8,7 +8,11 @@ Set the SQL Server connection string to the instance where your existing `MftDb`
 
 ```powershell
 $env:ConnectionStrings__Default = "Data Source=arianslaptop\serverarian;Initial Catalog=MftDb;Integrated Security=True;Trust Server Certificate=True"
-$env:Jwt__Key = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
+$bytes = New-Object byte[] 48
+$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+$rng.GetBytes($bytes)
+$env:Jwt__Key = [Convert]::ToBase64String($bytes)
+$rng.Dispose()
 $env:ASPNETCORE_ENVIRONMENT = "Development"
 $env:Bootstrap__CreateSuperAdmin = "true"
 $env:Bootstrap__Username = "arianadmin"

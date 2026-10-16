@@ -70,7 +70,7 @@ public sealed class AnswerKeysController(AppDbContext db, ICurrentUser current) 
         var q = await db.Questions.Include(x => x.Options).Include(x => x.ExamQuestions).SingleOrDefaultAsync(x => x.Id == id, ct);
         if (q is null) return NotFound();
         if (!await OwnsQuestionAsync(q, ct)) return Forbid();
-        if (q.ExamQuestions.Count > 0 && await db.ExamAttempts.AnyAsync(a => a.ExamId == q.ExamQuestions.Select(eq => eq.ExamId).FirstOrDefault() && a.SubmittedAt != null, ct))
+        var linkedExamIds = q.ExamQuestions.Select(eq => eq.ExamId).ToList();\n        if (linkedExamIds.Count > 0 && await db.ExamAttempts.AnyAsync(a => linkedExamIds.Contains(a.ExamId) && a.SubmittedAt != null, ct))
             return Conflict(new { message = "This question is already used by a submitted exam; editing its answer key is blocked." });
         if (request.DepartmentId != q.DepartmentId || request.TeacherId != q.CreatedByTeacherId)
             return BadRequest(new { message = "Question ownership and department cannot be changed." });

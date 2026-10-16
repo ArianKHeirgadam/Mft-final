@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Mft.Api;
+using Mft.Application.Abstractions;
 using Mft.Domain;
 using Mft.Infrastructure.Persistence;
 

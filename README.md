@@ -24,9 +24,9 @@ See [API-ENDPOINTS.md](API-ENDPOINTS.md) for the intended route contract and aut
 1. Install the .NET 8 SDK and SQL Server.
 2. Set connection string and JWT signing key using user-secrets or environment variables; do not commit secrets.
 3. Set the bootstrap super-admin credentials using environment variables or user-secrets for first startup only.
-4. Run `dotnet build .\\src\\Mft.API` and `dotnet run --project .\\src\\Mft.API`.
+4. Run `dotnet build .\\src\\Mft.Api` and `dotnet run --project .\\src\\Mft.Api`.
 5. After the first administrator is provisioned, disable bootstrap creation and restart the API.
 
 ## Important
 
-The supplied SQL schema has separate `Students` and `Teachers` tables and uses `uniqueidentifier` primary keys. Entity models and EF mappings must match those facts. Courses are not present in the supplied schema; adding course endpoints requires adding a `Courses` table and migration/script before those routes can persist course data.
+The supplied SQL schema has separate `Students` and `Teachers` tables and uses `uniqueidentifier` primary keys. Entity models and EF mappings must match those facts. Courses are added by the additive script `database/004_courses.sql`; run it once against `MftDb` before using course routes. The API does not apply schema changes automatically. See `docs/BOOTSTRAP-ADMIN.md` for the first-admin and local environment setup.

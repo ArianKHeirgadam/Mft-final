@@ -97,6 +97,7 @@ Students must never be allowed to submit arbitrary scores, change another studen
 - `GET|POST /api/exams`
 - `GET|POST /api/courses`, `GET|PUT|DELETE /api/courses/{id}`
 - `GET|POST /api/answer-keys`, `GET|PUT|DELETE /api/answer-keys/{id}`
+- `POST /api/answer-keys/import` (multipart upload: XLSX, XLSM, text-based PDF, CSV, TSV, JSON, XML, TXT)
 - `GET /api/portal/me`, `GET /api/portal/my-exams`, `POST /api/portal/exams/{examId}/start`
 - `POST /api/portal/attempts/{attemptId}/submit`, `GET /api/portal/my-attempts`
 - `GET /api/portal/notifications`, `POST /api/portal/notifications/{id}/read`
@@ -106,3 +107,16 @@ Students must never be allowed to submit arbitrary scores, change another studen
 - `GET /api/manage/exams/{id}/attempts`, `PUT /api/manage/answers/{id}/grade`
 
 Objective questions are automatically scored and normalized to 100. Essay questions remain pending manual grading. Correct options are not returned in student exam payloads.
+
+
+## Answer-key import formats
+
+The upload endpoint accepts a multipart form with fields `DepartmentId`, `TeacherId`, and `File` (maximum 10 MB, 500 questions per import). Teachers may import only for their own teacher profile and department.
+
+- **XLSX/XLSM, CSV, TSV:** first row/line is a header with `Text`, and optional `Type`, `Points`, `Options` columns. `Options` format: `Option A|false;Option B|true`.
+- **JSON:** one question object or an array, e.g. `{"text":"2+2?","type":"MultipleChoice","points":1,"options":[{"text":"4","isCorrect":true},{"text":"5","isCorrect":false}]}`.
+- **XML:** `<Questions><Question><Text>...</Text><Type>MultipleChoice</Type><Points>1</Points><Options><Option IsCorrect="true">4</Option><Option IsCorrect="false">5</Option></Options></Question></Questions>`.
+- **TXT:** tab-delimited rows using the same header format, or JSON content.
+- **PDF:** text-based PDFs must contain one question per line: `Question text | MultipleChoice | 1 | Option A:false;Option B:true`. Scanned/image-only PDFs need OCR before upload.
+
+Multiple-choice questions require at least two options and exactly one correct option. Student-facing exam responses never include the correct-option flags.

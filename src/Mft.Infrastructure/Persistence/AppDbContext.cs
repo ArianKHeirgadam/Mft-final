@@ -1,0 +1,17 @@
+using Microsoft.EntityFrameworkCore;
+using Mft.Domain;
+namespace Mft.Infrastructure.Persistence;
+public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options), Mft.Application.Abstractions.IMftDbContext {
+ public DbSet<User> Users=>Set<User>(); public DbSet<Department> Departments=>Set<Department>(); public DbSet<Student> Students=>Set<Student>(); public DbSet<Teacher> Teachers=>Set<Teacher>(); public DbSet<Question> Questions=>Set<Question>(); public DbSet<QuestionOption> QuestionOptions=>Set<QuestionOption>(); public DbSet<Exam> Exams=>Set<Exam>(); public DbSet<ExamQuestion> ExamQuestions=>Set<ExamQuestion>(); public DbSet<ExamAttempt> ExamAttempts=>Set<ExamAttempt>(); public DbSet<ExamAnswer> ExamAnswers=>Set<ExamAnswer>(); public DbSet<Notification> Notifications=>Set<Notification>();
+ protected override void OnModelCreating(ModelBuilder b){
+  b.Entity<User>().ToTable("Users").HasKey(x=>x.Id); b.Entity<User>().Property(x=>x.Role).HasConversion<string>(); b.Entity<User>().HasIndex(x=>x.Username).IsUnique(); b.Entity<User>().Property(x=>x.Mobile).HasMaxLength(30); b.Entity<User>().HasOne<Department>().WithMany().HasForeignKey(x=>x.DepartmentId).OnDelete(DeleteBehavior.Restrict);
+  b.Entity<Department>().ToTable("Departments").HasKey(x=>x.Id);
+  b.Entity<Student>().ToTable("Students").HasKey(x=>x.Id); b.Entity<Student>().HasIndex(x=>x.StudentNumber).IsUnique(); b.Entity<Student>().HasOne(x=>x.User).WithOne(x=>x.Student).HasForeignKey<Student>(x=>x.UserId); b.Entity<Student>().HasOne(x=>x.Department).WithMany(x=>x.Students).HasForeignKey(x=>x.DepartmentId);
+  b.Entity<Teacher>().ToTable("Teachers").HasKey(x=>x.Id); b.Entity<Teacher>().HasOne(x=>x.User).WithOne(x=>x.Teacher).HasForeignKey<Teacher>(x=>x.UserId); b.Entity<Teacher>().HasOne(x=>x.Department).WithMany(x=>x.Teachers).HasForeignKey(x=>x.DepartmentId);
+  b.Entity<Question>().ToTable("Questions").HasKey(x=>x.Id); b.Entity<Question>().Property(x=>x.Type).HasConversion<string>(); b.Entity<Question>().HasOne(x=>x.Department).WithMany().HasForeignKey(x=>x.DepartmentId); b.Entity<Question>().HasOne(x=>x.CreatedByTeacher).WithMany().HasForeignKey(x=>x.CreatedByTeacherId).OnDelete(DeleteBehavior.Restrict);
+  b.Entity<QuestionOption>().ToTable("QuestionOptions").HasKey(x=>x.Id); b.Entity<QuestionOption>().HasOne(x=>x.Question).WithMany(x=>x.Options).HasForeignKey(x=>x.QuestionId);
+  b.Entity<Exam>().ToTable("Exams").HasKey(x=>x.Id); b.Entity<Exam>().Property(x=>x.Status).HasConversion<string>(); b.Entity<Exam>().HasOne(x=>x.Department).WithMany(x=>x.Exams).HasForeignKey(x=>x.DepartmentId); b.Entity<Exam>().HasOne(x=>x.Teacher).WithMany(x=>x.Exams).HasForeignKey(x=>x.TeacherId);
+  b.Entity<ExamQuestion>().ToTable("ExamQuestions").HasKey(x=>new{x.ExamId,x.QuestionId}); b.Entity<ExamQuestion>().HasOne(x=>x.Exam).WithMany(x=>x.Questions).HasForeignKey(x=>x.ExamId); b.Entity<ExamQuestion>().HasOne(x=>x.Question).WithMany(x=>x.ExamQuestions).HasForeignKey(x=>x.QuestionId);
+  b.Entity<ExamAttempt>().ToTable("ExamAttempts").HasKey(x=>x.Id); b.Entity<ExamAnswer>().ToTable("ExamAnswers").HasKey(x=>x.Id); b.Entity<Notification>().ToTable("Notifications").HasKey(x=>x.Id);
+ }
+}

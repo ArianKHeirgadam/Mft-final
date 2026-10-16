@@ -12,3 +12,13 @@ export const get=<T>(path:string)=>request<T>(path);
 export const post=<T>(path:string,body:unknown)=>request<T>(path,{method:"POST",body:JSON.stringify(body)});
 export const put=<T>(path:string,body:unknown)=>request<T>(path,{method:"PUT",body:JSON.stringify(body)});
 export const del=<T=void>(path:string)=>request<T>(path,{method:"DELETE"});
+
+export async function upload<T>(path:string,body:FormData):Promise<T>{
+ const token=localStorage.getItem("mft_token");
+ const headers=new Headers();
+ if(token) headers.set("Authorization",`Bearer ${token}`);
+ const response=await fetch(base+path,{method:"POST",headers,body});
+ if(response.status===401){localStorage.removeItem("mft_token");localStorage.removeItem("mft_user");window.location.href="/";}
+ if(!response.ok){let message=`API ${response.status}`;try{const result=await response.json();message=result.message??message}catch{};throw new Error(message)}
+ return response.status===204?undefined as T:await response.json() as T;
+}

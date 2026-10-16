@@ -1,30 +1,37 @@
-# Bootstrap the first SuperAdmin safely
+# Provision the first SuperAdmin
 
-The current SQL schema uses `uniqueidentifier` for `Users.Id` and stores roles as `nvarchar(30)`. Do not manually insert a plain-text password into `Users.PasswordHash`.
+The API uses BCrypt password hashes, `Guid` user IDs, and the existing `MftDb` schema. No default administrator password is committed to the repository.
 
-The API's startup bootstrap code must be built from the schema-aligned source version before using these settings. The previous `int`-key build is not compatible with the supplied database.
+## 1. Open PowerShell at the repository root
 
-## Environment variables
-
-Set these only in a local PowerShell session or user-secrets, never commit real credentials to `appsettings.json`:
+Set the SQL Server connection string to the instance where your existing `MftDb` database lives. Example below uses the instance name from the original project configuration; adjust it if your server differs.
 
 ```powershell
+$env:ConnectionStrings__Default = "Data Source=arianslaptop\serverarian;Initial Catalog=MftDb;Integrated Security=True;Trust Server Certificate=True"
+$env:Jwt__Key = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
+$env:ASPNETCORE_ENVIRONMENT = "Development"
 $env:Bootstrap__CreateSuperAdmin = "true"
 $env:Bootstrap__Username = "arianadmin"
-$env:Bootstrap__Password = "REPLACE_WITH_A_UNIQUE_STRONG_PASSWORD"
+$env:Bootstrap__Password = Read-Host "Enter a unique strong password (at least 12 characters)"
 $env:Bootstrap__FullName = "System Administrator"
-$env:ASPNETCORE_ENVIRONMENT = "Development"
-dotnet run --project .\src\Mft.API
+dotnet run --project .\src\Mft.Api
 ```
 
-Only run this after confirming the schema-aligned startup seed checks whether the username already exists and hashes the password with BCrypt. After the first successful startup, stop the API and set:
+The account is created only if the username does not already exist. The startup routine hashes the password with BCrypt and sets `MustChangePassword=true`. If the username already exists with a non-SuperAdmin role, startup fails safely rather than elevating that account.
+
+## 2. Disable bootstrap after the first successful startup
+
+Stop the API with `Ctrl+C`, then run:
 
 ```powershell
 $env:Bootstrap__CreateSuperAdmin = "false"
+dotnet run --project .\src\Mft.Api
 ```
 
-Then restart the API. Do not expose the temporary password in Git, logs, screenshots, or chat. If startup fails with SQL column errors, do not attempt repeated seeding; correct the entity mappings first.
+Keep the generated `Jwt__Key` private and stable for this environment. If you restart PowerShell later, re-load the same JWT key securely; generating a new key invalidates existing tokens. Store it in .NET user-secrets or an environment-specific secret store for persistent local development.
 
-## Recovery
+## Courses schema
 
-If the seed does not create the account, check the API console for the startup exception and verify the configured `ConnectionStrings__DefaultConnection` points to the intended `MftDb` database. Do not run destructive migrations or delete existing users to recover access.
+Before using `/api/courses`, run `database/004_courses.sql` once against `MftDb`. This is an additive script and is not automatically run by the API. Back up the database before applying schema changes in a production environment.
+
+Never run `database/002_seed.sql` from older project versions that inserted accounts with known demo password hashes. The current version only seeds a department and provisions the administrator through the secure startup flow.

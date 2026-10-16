@@ -38,7 +38,7 @@ A caller cannot assign a role higher than their own. Department users cannot cro
 
 ## Courses / subjects
 
-The supplied database schema does not currently contain a Courses table. Add a Courses entity/table and migration (or an approved SQL deployment script) before enabling these routes.
+The Courses entity and routes are implemented. Apply the additive script `database/004_courses.sql` to `MftDb` before using these endpoints; the API does not run schema changes automatically.
 
 | Method | Route | Allowed roles | Purpose |
 |---|---|---|---|
@@ -83,3 +83,26 @@ Correct answers and answer-key data must never be included in a student's exam p
 | GET | `/students/me/results` | Student | Own results only |
 
 Students must never be allowed to submit arbitrary scores, change another student's attempt, or read correct answers before submission/release.
+
+
+## Routes implemented in this repository
+
+- `POST /api/auth/login`, `POST /api/auth/change-password`
+- `GET /api/health`
+- `GET|POST /api/students`, `DELETE /api/students/{id}`
+- `GET|POST /api/teachers`
+- `POST /api/department-managers`
+- `GET|POST /api/departments`, `PUT|DELETE /api/departments/{id}`
+- `GET|POST /api/questions`
+- `GET|POST /api/exams`
+- `GET|POST /api/courses`, `GET|PUT|DELETE /api/courses/{id}`
+- `GET|POST /api/answer-keys`, `GET|PUT|DELETE /api/answer-keys/{id}`
+- `GET /api/portal/me`, `GET /api/portal/my-exams`, `POST /api/portal/exams/{examId}/start`
+- `POST /api/portal/attempts/{attemptId}/submit`, `GET /api/portal/my-attempts`
+- `GET /api/portal/notifications`, `POST /api/portal/notifications/{id}/read`
+- `PUT /api/manage/students/{id}`, `PUT /api/manage/teachers/{id}`
+- `PATCH /api/manage/users/{id}/active`, `POST /api/manage/users/{id}/reset-password`
+- `PUT|DELETE /api/manage/questions/{id}`, `PUT|DELETE /api/manage/exams/{id}`
+- `GET /api/manage/exams/{id}/attempts`, `PUT /api/manage/answers/{id}/grade`
+
+Objective questions are automatically scored and normalized to 100. Essay questions remain pending manual grading. Correct options are not returned in student exam payloads.

@@ -1,0 +1,85 @@
+# API endpoint contract
+
+Base URL: `/api`. All routes except login, health and the explicit password lifecycle routes require a valid JWT. Role checks must be enforced in controllers/policies, not only in the frontend.
+
+## Authentication
+
+| Method | Route | Access | Purpose |
+|---|---|---|---|
+| POST | `/auth/login` | Anonymous | Authenticate username/password; return access token and role |
+| GET | `/auth/me` | Any authenticated user | Current identity |
+| POST | `/auth/change-password` | Authenticated user | Change temporary/current password |
+| POST | `/auth/logout` | Authenticated user (optional for stateless JWT) | Client-side token discard / optional revocation |
+| GET | `/health` | Anonymous | Health check |
+
+## Users and roles
+
+| Method | Route | Allowed roles | Purpose |
+|---|---|---|---|
+| GET | `/users` | SuperAdmin, Department, Teacher (scope-filtered) | List visible users |
+| GET | `/users/{id}` | SuperAdmin, Department, Teacher (scope-filtered) | Get user |
+| POST | `/users` | SuperAdmin, Department, Teacher (role-restricted) | Create account with generated temporary password |
+| PUT | `/users/{id}` | SuperAdmin, Department (own department), Teacher (own students only) | Update permitted account fields |
+| PATCH | `/users/{id}/active` | SuperAdmin, Department (own department) | Activate/deactivate account |
+| POST | `/users/{id}/reset-password` | SuperAdmin, Department (own department), Teacher (own students only) | Generate temporary password and require change |
+| DELETE | `/users/{id}` | SuperAdmin only | Delete/deactivate account under referential-integrity policy |
+
+A caller cannot assign a role higher than their own. Department users cannot cross department boundaries. Teachers may create/manage students only.
+
+## Departments
+
+| Method | Route | Allowed roles | Purpose |
+|---|---|---|---|
+| GET | `/departments` | Any authenticated user (scope-limited) | List departments |
+| GET | `/departments/{id}` | Any authenticated user (scope-limited) | Department detail |
+| POST | `/departments` | SuperAdmin | Create department and optionally assign department manager |
+| PUT | `/departments/{id}` | SuperAdmin | Update department |
+| DELETE | `/departments/{id}` | SuperAdmin | Delete only if no dependent records, otherwise return 409 |
+
+## Courses / subjects
+
+The supplied database schema does not currently contain a Courses table. Add a Courses entity/table and migration (or an approved SQL deployment script) before enabling these routes.
+
+| Method | Route | Allowed roles | Purpose |
+|---|---|---|---|
+| GET | `/courses?departmentId={id}` | Authenticated user (scope-limited) | List visible courses |
+| GET | `/courses/{id}` | Authenticated user (scope-limited) | Course detail |
+| POST | `/courses` | SuperAdmin, Department | Create course within permitted department |
+| PUT | `/courses/{id}` | SuperAdmin, Department (own department) | Update course |
+| DELETE | `/courses/{id}` | SuperAdmin, Department (own department) | Delete only if not referenced, otherwise 409 |
+
+## Questions and answer keys
+
+| Method | Route | Allowed roles | Purpose |
+|---|---|---|---|
+| GET | `/questions` | SuperAdmin, Department, Teacher (scope-limited) | List question bank |
+| GET | `/questions/{id}` | SuperAdmin, Department, owning Teacher | Get question |
+| POST | `/questions` | SuperAdmin, Department, Teacher | Create question/options |
+| PUT | `/questions/{id}` | SuperAdmin, Department (own department), owning Teacher | Update question/options |
+| DELETE | `/questions/{id}` | SuperAdmin, Department (own department), owning Teacher | Delete if not used by exams |
+| GET | `/answer-keys` | SuperAdmin, Department, Teacher (scope-limited) | List answer keys |
+| POST | `/answer-keys` | SuperAdmin, Department, Teacher | Create/upload answer key; teacher limited to own course/department |
+| GET | `/answer-keys/{id}` | SuperAdmin, Department, Teacher (scope-limited) | Retrieve answer key metadata/content |
+| PUT | `/answer-keys/{id}` | SuperAdmin, Department (own department), owning Teacher | Replace/update key |
+| DELETE | `/answer-keys/{id}` | SuperAdmin, Department (own department), owning Teacher | Delete key if unused |
+
+Correct answers and answer-key data must never be included in a student's exam payload.
+
+## Exams and attempts
+
+| Method | Route | Allowed roles | Purpose |
+|---|---|---|---|
+| GET | `/exams` | All authenticated roles (scope-limited) | List available exams |
+| GET | `/exams/{id}` | All authenticated roles (student-safe projection) | Exam detail without answer key |
+| POST | `/exams` | SuperAdmin, Department, Teacher | Create exam; teacher limited to own department |
+| PUT | `/exams/{id}` | SuperAdmin, Department (own department), owning Teacher | Update exam |
+| POST | `/exams/{id}/publish` | SuperAdmin, Department (own department), owning Teacher | Publish/schedule exam |
+| DELETE | `/exams/{id}` | SuperAdmin, Department (own department), owning Teacher | Delete only if no attempts exist |
+| POST | `/exams/{id}/attempts` | Student | Start an eligible exam |
+| GET | `/attempts/{id}` | Student (own attempt), staff (scope-limited) | Get attempt; student projection only |
+| PUT | `/attempts/{id}/answers` | Student (own in-progress attempt) | Save answer(s) |
+| POST | `/attempts/{id}/submit` | Student (own in-progress attempt) | Submit exam; server validates and scores objective questions |
+| GET | `/exams/{id}/results` | SuperAdmin, Department, owning Teacher | Results for exam |
+| GET | `/students/me/results` | Student | Own results only |
+
+Students must never be allowed to submit arbitrary scores, change another student's attempt, or read correct answers before submission/release.

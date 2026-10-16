@@ -1,6 +1,6 @@
 import {useEffect,useState,type FormEvent} from "react";
 import {login,changePassword} from "../api/auth.api";
-import {get,post,put,del} from "../api/client";
+import {get,post,upload} from "../api/client";
 import {myExams,myAttempts,notifications,markNotificationRead,startExam} from "../api/portal.api";
 import {students,teachers,departments,exams} from "../api/management.api";
 import type {Role,Student,Teacher,Department,Exam,Notification,LoginResponse} from "../types";
@@ -26,7 +26,7 @@ function StudentPortal(){
 }
 function Management({role}:{role:Role}){
  const [tab,setTab]=useState("students"),[rows,setRows]=useState<any[]>([]),[error,setError]=useState(""),[notice,setNotice]=useState(""),[form,setForm]=useState<Record<string,string>>({});
- const [me,setMe]=useState<any>({}),[deps,setDeps]=useState<Department[]>([]),[teacherRows,setTeacherRows]=useState<Teacher[]>([]);
+ const [me,setMe]=useState<any>({}),[deps,setDeps]=useState<Department[]>([]),[teacherRows,setTeacherRows]=useState<Teacher[]>([]),[importFile,setImportFile]=useState<File|null>(null);
  const tabs=role==="SuperAdmin"?["students","teachers","departments","department-managers","courses","exams","answer-keys"]:role==="Department"?["students","teachers","courses","exams"]:role==="Teacher"?["students","exams","answer-keys"]:[];
  useEffect(()=>{if(!tabs.includes(tab))setTab(tabs[0]??"students")},[role]);
  async function load(){
@@ -42,6 +42,16 @@ function Management({role}:{role:Role}){
  function set(k:string,v:string){setForm(f=>({...f,[k]:v}))}
  const field=(key:string,label:string,type="text",required=true)=><label key={key}>{label}<input type={type} value={form[key]??""} onChange={e=>set(key,e.target.value)} required={required}/></label>;
  const departmentField=role==="SuperAdmin"?<label>دپارتمان<select value={form.departmentId??""} onChange={e=>set("departmentId",e.target.value)} required><option value="">انتخاب دپارتمان</option>{deps.map(d=><option value={d.id} key={d.id}>{d.name}</option>)}</select></label>:null;
+ async function importAnswerKey(e:FormEvent){
+  e.preventDefault();setError("");setNotice("");
+  if(!importFile){setError("یک فایل انتخاب کن.");return}
+  try{
+   const data=new FormData();data.append("DepartmentId",form.departmentId||scopeId);data.append("TeacherId",form.teacherId||(me.teacherId??""));data.append("File",importFile);
+   const result=await upload<any>("/answer-keys/import",data);
+   setNotice(`ورود پاسخ‌نامه موفق بود؛ تعداد سؤال واردشده: ${result.importedCount}`);
+   setImportFile(null);await load();
+  }catch(e){setError(e instanceof Error?e.message:"خطا در ورود فایل")}
+ }
  async function create(e:FormEvent){
   e.preventDefault();setError("");setNotice("");
   try{
@@ -72,6 +82,7 @@ function Management({role}:{role:Role}){
  {tab==="exams"&&<>{field("title","عنوان آزمون")}{field("durationMinutes","مدت (دقیقه)","number")}{field("passingScore","حدنصاب","number",false)}{field("scheduledAt","زمان شروع","datetime-local")}{field("teacherId","شناسه استاد (Teacher Id)", "text",role!=="Teacher")}{field("questionIds","شناسه سؤال‌ها با کاما جدا شود","text",false)}{departmentField}<label>اجازه جابه‌جایی سؤال‌ها<select value={form.allowNavigation??"true"} onChange={e=>set("allowNavigation",e.target.value)}><option value="true">بله</option><option value="false">خیر</option></select></label></>}
  {tab==="answer-keys"&&<>{field("text","متن سؤال")}<label>نوع سؤال<select value={form.type??"MultipleChoice"} onChange={e=>set("type",e.target.value)}><option>MultipleChoice</option><option>Essay</option></select></label>{field("points","امتیاز","number")}{field("teacherId","شناسه استاد (Teacher Id)","text",role!=="Teacher")}{departmentField}<label>گزینه‌ها به‌صورت JSON<textarea value={form.options??"[]" } onChange={e=>set("options",e.target.value)} placeholder='[{"text":"گزینه اول","isCorrect":true},{"text":"گزینه دوم","isCorrect":false}]'/></label></>}
  <button type="submit">ثبت</button></form>}
+ {tab==="answer-keys"&&<form className="card" onSubmit={importAnswerKey}><h2>ورود پاسخ‌نامه از فایل</h2>{departmentField}{field("teacherId","شناسه استاد (Teacher Id)","text",role!=="Teacher")}<label>فایل پاسخ‌نامه<input type="file" accept=".xlsx,.xlsm,.pdf,.csv,.tsv,.json,.xml,.txt" onChange={e=>setImportFile(e.target.files?.[0]??null)} required/></label><p className="muted">فرمت‌ها: Excel، PDF متنی، CSV، TSV، JSON، XML و TXT. برای CSV/TSV ستون‌های Text, Type, Points, Options لازم است.</p><button type="submit">وارد کردن فایل</button></form>}
  <Table title={tab} rows={rows.map(x=>Object.fromEntries(Object.entries(x).filter(([k])=>!["options"].includes(k)).slice(0,9)))}/>
  </>;
 }

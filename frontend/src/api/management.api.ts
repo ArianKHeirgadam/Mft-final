@@ -1,0 +1,12 @@
+import {get,post,put,del} from "./client"; import type {Student,Teacher,Department,Exam} from "../types";
+export const students=(search?:string)=>get<Student[]>(`/students${search?`?search=${encodeURIComponent(search)}`:""}`);
+export const teachers=()=>get<Teacher[]>("/teachers");
+export const departments=()=>get<Department[]>("/departments");
+export const exams=()=>get<Exam[]>("/exams");
+export const createStudent=(body:unknown)=>post<Student>("/students",body);
+export const createTeacher=(body:unknown)=>post<Teacher>("/teachers",body);
+export const createDepartment=(body:unknown)=>post<Department>("/departments",body);
+export const deleteStudent=(id:string)=>del(`/students/${id}`);
+export const deleteDepartment=(id:string)=>del(`/departments/${id}`);
+export const updateStudent=(id:string,body:unknown)=>put<void>(`/manage/students/${id}`,body);
+export const updateTeacher=(id:string,body:unknown)=>put<void>(`/manage/teachers/${id}`,body);

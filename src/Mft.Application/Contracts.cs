@@ -1,0 +1,17 @@
+using Mft.Domain;
+namespace Mft.Application.Contracts;
+public record LoginRequest(string Username,string Password);
+public record LoginResponse(string Token,Guid UserId,string FullName,UserRole Role,bool MustChangePassword);
+public record ChangePasswordRequest(string CurrentPassword,string NewPassword);
+public record StudentDto(Guid Id,string FullName,string StudentNumber,string Department,string DegreeLevel,decimal? GPA,string Status);
+public record TeacherDto(Guid Id,string FullName,string Department,string Specialty,string Status);
+public record DepartmentDto(Guid Id,string Name,string? ManagerName,string DegreeLevel,bool IsActive,int StudentCount,int TeacherCount);
+public record QuestionOptionDto(Guid? Id,string Text,bool IsCorrect);
+public record QuestionDto(Guid Id,string Text,QuestionType Type,decimal Points,string Department,string Teacher,IReadOnlyList<QuestionOptionDto> Options);
+public record ExamDto(Guid Id,string Title,string Department,string Teacher,int DurationMinutes,decimal PassingScore,DateTime ScheduledAt,ExamStatus Status,int QuestionCount);
+public record CreateStudentRequest(string FullName,string Username,string Email,string Mobile,string StudentNumber,string EntryYear,Guid DepartmentId,decimal? GPA,string Status);
+public record CreateTeacherRequest(string FullName,string Username,string Email,string Mobile,string Password,Guid DepartmentId,string Specialty,string Status);
+public record CreateDepartmentRequest(string Name,string? ManagerName,string DegreeLevel);
+public record CreateDepartmentManagerRequest(string FullName,string Username,string Email,string Mobile,string Password,Guid DepartmentId);
+public record CreateQuestionRequest(Guid DepartmentId,Guid TeacherId,string Text,QuestionType Type,decimal Points,IReadOnlyList<QuestionOptionDto> Options);
+public record CreateExamRequest(Guid DepartmentId,Guid TeacherId,string Title,int DurationMinutes,decimal PassingScore,DateTime ScheduledAt,bool AllowNavigation,IReadOnlyList<Guid> QuestionIds);

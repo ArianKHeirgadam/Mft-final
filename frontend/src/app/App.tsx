@@ -1,4 +1,4 @@
-import {useEffect,useMemo,useState,type FormEvent} from "react";
+import {useEffect,useState,type FormEvent} from "react";
 import {login,changePassword} from "../api/auth.api";
 import {get,post,put,del} from "../api/client";
 import {myExams,myAttempts,notifications,markNotificationRead,startExam} from "../api/portal.api";
@@ -81,7 +81,7 @@ function App(){
  const logout=()=>{localStorage.removeItem("mft_token");localStorage.removeItem("mft_user");setUser(null)};
  if(!user)return <Login onLogin={x=>{localStorage.setItem("mft_token",x.token);localStorage.setItem("mft_user",JSON.stringify(x));setUser(x)}}/>;
  if(user.mustChangePassword)return <ChangePassword onDone={()=>{const u={...user,mustChangePassword:false};localStorage.setItem("mft_user",JSON.stringify(u));setUser(u)}}/>;
- const isStudent=role==="Student";const nav=useMemo(()=>isStudent?["dashboard","portal"]:["dashboard","management"],[isStudent,role]);
+ const isStudent=role==="Student";const nav=isStudent?["dashboard","portal"]:["dashboard","management"];
  return <div className="shell"><aside><h2>MFT</h2>{nav.map(x=><button className={page===x?"active":""} onClick={()=>setPage(x)} key={x}>{x==="dashboard"?"داشبورد":isStudent?"پرتال دانشجو":"مدیریت"}</button>)}<button onClick={logout}>خروج</button></aside><main className="content">{page==="dashboard"?<Dashboard role={role!}/>:isStudent?<StudentPortal/>:<Management role={role!}/>}</main></div>;
 }
 export default App;

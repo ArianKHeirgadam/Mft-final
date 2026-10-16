@@ -13,9 +13,9 @@ jobs:
         with:
           dotnet-version: 8.0.x
       - name: Restore
-        run: dotnet restore Mft.sln
+        run: dotnet restore src/Mft.Api/Mft.Api.csproj
       - name: Build
-        run: dotnet build Mft.sln --configuration Release --no-restore
+        run: dotnet build src/Mft.Api/Mft.Api.csproj --configuration Release --no-restore
       - name: Setup Node
         uses: actions/setup-node@v4
         with:

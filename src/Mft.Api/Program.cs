@@ -127,6 +127,36 @@ if(app.Environment.IsDevelopment()){
 
 app.UseCors();
 app.UseAuthentication();
+app.Use(async (context, next) =>
+{
+    if (context.User.Identity?.IsAuthenticated == true &&
+        bool.TryParse(context.User.FindFirst("must_change_password")?.Value, out var mustChange) && mustChange &&
+        context.Request.Path.StartsWithSegments("/api"))
+    {
+        var isChangePassword = HttpMethods.IsPost(context.Request.Method) &&
+            context.Request.Path.Equals("/api/auth/change-password", StringComparison.OrdinalIgnoreCase);
+        var isIdentityCheck = HttpMethods.IsGet(context.Request.Method) &&
+            context.Request.Path.Equals("/api/portal/me", StringComparison.OrdinalIgnoreCase);
+        if (!isChangePassword && !isIdentityCheck)
+        {
+            var userIdText = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (Guid.TryParse(userIdText, out var userId))
+            {
+                await using var scope = context.RequestServices.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var stillMustChange = await db.Users.AsNoTracking().Where(u => u.Id == userId).Select(u => (bool?)u.MustChangePassword).SingleOrDefaultAsync();
+                if (stillMustChange == true)
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    await context.Response.WriteAsJsonAsync(new { message = "برای ادامه، ابتدا رمز موقت خود را تغییر دهید.", code = "PASSWORD_CHANGE_REQUIRED" });
+                    return;
+                }
+            }
+        }
+    }
+    await next();
+});
 app.UseAuthorization();
+app.MapGet("/api/health", () => Results.Ok(new { status = "ok", service = "Mft.Api" })).AllowAnonymous();
 app.MapControllers();
 app.Run();

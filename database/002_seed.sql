@@ -1,6 +1,11 @@
+-- Safe baseline seed: creates one department only.
+-- Do NOT seed accounts with a known password hash. Create the first SuperAdmin through the
+-- Bootstrap environment variables documented in docs/BOOTSTRAP-ADMIN.md.
 USE MftDb;
-DECLARE @dep uniqueidentifier=NEWID(),@teacher uniqueidentifier=NEWID(),@tu uniqueidentifier=NEWID(),@admin uniqueidentifier=NEWID(),@manager uniqueidentifier=NEWID();
-IF NOT EXISTS(SELECT 1 FROM Departments WHERE Name=N'مهندسی کامپیوتر') INSERT Departments(Id,Name,ManagerName,DegreeLevel) VALUES(@dep,N'مهندسی کامپیوتر',N'مدیر دپارتمان',N'کارشناسی'); ELSE SELECT @dep=Id FROM Departments WHERE Name=N'مهندسی کامپیوتر';
-IF NOT EXISTS(SELECT 1 FROM Users WHERE Username='admin') INSERT Users(Id,Username,PasswordHash,Role,FullName,Email,Mobile,DepartmentId) VALUES(@admin,'admin',N'$2a$11$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llCj9x1g5cY9G8gJ7m7u2','SuperAdmin',N'مدیر سیستم',N'admin@mft.local',N'',NULL);
-IF NOT EXISTS(SELECT 1 FROM Users WHERE Username='teacher') BEGIN INSERT Users(Id,Username,PasswordHash,Role,FullName,Email,Mobile,DepartmentId) VALUES(@tu,'teacher',N'$2a$11$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llCj9x1g5cY9G8gJ7m7u2','Teacher',N'دکتر کریمی',N'teacher@mft.local',N'',@dep); INSERT Teachers(Id,UserId,DepartmentId,Specialty,Status) VALUES(@teacher,@tu,@dep,N'هوش مصنوعی و یادگیری ماشین',N'Active'); END
-IF NOT EXISTS(SELECT 1 FROM Users WHERE Username='deptmanager') BEGIN INSERT Users(Id,Username,PasswordHash,Role,FullName,Email,Mobile,DepartmentId) VALUES(@manager,'deptmanager',N'$2a$11$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llCj9x1g5cY9G8gJ7m7u2','Department',N'مدیر دپارتمان',N'manager@mft.local',N'',@dep); UPDATE Departments SET ManagerName=N'مدیر دپارتمان' WHERE Id=@dep; END
+GO
+IF NOT EXISTS (SELECT 1 FROM dbo.Departments WHERE Name=N'مهندسی کامپیوتر')
+BEGIN
+    INSERT dbo.Departments(Id,Name,ManagerName,DegreeLevel,IsActive)
+    VALUES(NEWID(),N'مهندسی کامپیوتر',NULL,N'کارشناسی',1);
+END;
+GO

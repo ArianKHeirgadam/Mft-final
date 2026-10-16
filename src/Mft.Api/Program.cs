@@ -8,6 +8,7 @@ using Mft.Application.Services;
 using Mft.Infrastructure;
 using Mft.Infrastructure.Persistence;
 using Mft.Api;
+using Mft.Domain;
 
 var builder=WebApplication.CreateBuilder(args);
 
@@ -77,6 +78,33 @@ builder.Services.AddCors(o=>o.AddDefaultPolicy(p=>p
     .AllowAnyMethod()));
 
 var app=builder.Build();
+
+// First-run administrator bootstrap. Credentials come from environment variables or user-secrets.
+// Existing usernames are never overwritten; no default administrator password is embedded in source.
+if (app.Configuration.GetValue<bool>("Bootstrap:CreateSuperAdmin"))
+{
+    var username = app.Configuration["Bootstrap:Username"]?.Trim();
+    var password = app.Configuration["Bootstrap:Password"];
+    var fullName = app.Configuration["Bootstrap:FullName"]?.Trim();
+    if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password) || password.Length < 12 || string.IsNullOrWhiteSpace(fullName))
+        throw new InvalidOperationException("Bootstrap requires Username, FullName, and a unique Password of at least 12 characters.");
+    await using var scope = app.Services.CreateAsyncScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var existing = await db.Users.SingleOrDefaultAsync(u => u.Username == username);
+    if (existing is null)
+    {
+        db.Users.Add(new User {
+            Id = Guid.NewGuid(), Username = username, PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+            Role = UserRole.SuperAdmin, FullName = fullName, Email = app.Configuration["Bootstrap:Email"] ?? "",
+            Mobile = app.Configuration["Bootstrap:Mobile"] ?? "", DepartmentId = null, IsActive = true,
+            MustChangePassword = true, CreatedAt = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
+        app.Logger.LogWarning("Bootstrap SuperAdmin {Username} was created. Disable Bootstrap:CreateSuperAdmin after confirming login.", username);
+    }
+    else if (existing.Role != UserRole.SuperAdmin)
+        throw new InvalidOperationException("Bootstrap username already exists with a non-SuperAdmin role. Choose another username.");
+}
 
 app.UseExceptionHandler(handler=>handler.Run(async context=>{
     var ex=context.Features.Get<IExceptionHandlerFeature>()?.Error;

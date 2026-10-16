@@ -11,7 +11,7 @@ public interface IMftService {
  Task<StudentDto> CreateStudentAsync(CreateStudentRequest request,CancellationToken ct);
  Task DeleteStudentAsync(Guid id,CancellationToken ct);
  Task<IReadOnlyList<TeacherDto>> TeachersAsync(string? search,Guid? departmentId,CancellationToken ct);
- Task<TeacherDto> CreateTeacherAsync(CreateTeacherRequest request,CancellationToken ct); Task CreateDepartmentManagerAsync(CreateDepartmentManagerRequest request,CancellationToken ct);
+ Task<TeacherDto> CreateTeacherAsync(CreateTeacherRequest request,CancellationToken ct); Task<string> CreateDepartmentManagerAsync(CreateDepartmentManagerRequest request,CancellationToken ct);
  Task<IReadOnlyList<DepartmentDto>> DepartmentsAsync(CancellationToken ct);
  Task<DepartmentDto> CreateDepartmentAsync(CreateDepartmentRequest request,CancellationToken ct);
  Task DeleteDepartmentAsync(Guid id,CancellationToken ct);
